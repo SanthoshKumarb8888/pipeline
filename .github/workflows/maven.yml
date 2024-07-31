@@ -61,14 +61,14 @@ jobs:
         id: check-status
         run: echo "Quality gate status is $(cat quality_gate_status.txt)"
 
-      - name: Send Slack Notification on Failure
+      - name: Send Slack Notification on Quality Gate Failure
         if: steps.quality-gate.outputs.status != 'OK'
         uses: slackapi/slack-github-action@v1.18.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
           text: "Quality gate failed. Report: https://github.com/your_org/your_repo/actions/runs/${{ github.run_id }}/artifacts/sonar-report"
-
+          
       - name: Build Docker Image
         run: docker build -t your_docker_image_name .
 
@@ -78,6 +78,7 @@ jobs:
           docker push your_docker_image_name
 
       - name: Trigger CD Workflow
+        if: success() || failure()
         uses: peter-evans/workflow-dispatch@v1
         with:
           workflow: cd.yml
@@ -85,3 +86,11 @@ jobs:
             docker_image: your_docker_image_name:latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send Slack Notification on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.18.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          text: "CI Workflow failed. Check the details at https://github.com/your_org/your_repo/actions/runs/${{ github.run_id }}"
