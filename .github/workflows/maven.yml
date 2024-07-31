@@ -1,20 +1,77 @@
 name: CI Workflow
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+name: CI Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code with Linux commands
-      run: |
-        mkdir my-repo
-        cd my-repo
-        git init
-        git remote add origin https://github.com/SanthoshKumarb8888/pipeline.git
-        git fetch origin
-        git checkout -b main origin/main
+      - name: Checkout code using actions/checkout
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build with Maven
+        run: mvn clean install
+
+      - name: Run Tests with Maven
+        run: mvn test
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=your_project_key
+            -Dsonar.organization=your_organization
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+      - name: Quality Gate Check
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=your_project_key \
+            -Dsonar.organization=your_organization \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+      - name: Build Docker Image
+        run: docker build -t your_docker_image_name .
+
+      - name: Publish Docker Image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push your_docker_image_name
 
     - name: Checkout code using actions/checkout
       uses: actions/checkout@v2
