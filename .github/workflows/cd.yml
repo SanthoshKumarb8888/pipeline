@@ -1,0 +1,47 @@
+name: CD Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: 'Docker image to deploy'
+        required: true
+        default: 'your_docker_image_name:latest'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code using actions/checkout
+        uses: actions/checkout@v2
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Login to ArgoCD
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_USERNAME: ${{ secrets.ARGOCD_USERNAME }}
+          ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
+        run: |
+          argocd login $ARGOCD_SERVER \
+            --username $ARGOCD_USERNAME \
+            --password $ARGOCD_PASSWORD \
+            --insecure
+
+      - name: Update ArgoCD Application
+        env:
+          DOCKER_IMAGE: ${{ github.event.inputs.docker_image }}
+          ARGOCD_APP_NAME: ${{ secrets.ARGOCD_APP_NAME }}
+        run: |
+          argocd app set $ARGOCD_APP_NAME \
+            --parameter image=$DOCKER_IMAGE
+
+      - name: Sync ArgoCD Application
+        env:
+          ARGOCD_APP_NAME: ${{ secrets.ARGOCD_APP_NAME }}
+        run: |
+          argocd app sync $ARGOCD_APP_NAME
